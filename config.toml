@@ -1,0 +1,14 @@
+[repos]
+source = "https://github.com/mozilla-l10n/firefox-l10n-source"
+target = "https://github.com/mozilla-l10n/firefox-l10n"
+
+[comparison]
+# Channel selects which _data/*.json manifest to use.
+# Options: main (nightly) | beta | release | esr140 | esr115
+channel = "release"
+target_locales = ["bn", "de", "pl"]
+locale_display_names = { bn = "Bengali", de = "German", pl = "Polish" }
+
+[output]
+output_dir = "output"
+repo_cache_dir = ".repos"

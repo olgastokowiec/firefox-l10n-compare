@@ -1,0 +1,6 @@
+.repos/
+output/
+.venv/
+__pycache__/
+*.pyc
+SPEC.md

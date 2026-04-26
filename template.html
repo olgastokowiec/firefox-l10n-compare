@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firefox L10n Completeness Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js" charset="utf-8"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f6fa;
+      color: #2d3436;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background: #2c3e50;
+      color: white;
+      padding: 24px 32px;
+    }
+    header h1 { margin: 0 0 4px; font-size: 1.6rem; font-weight: 600; }
+    header .meta { font-size: 0.85rem; color: #b2bec3; }
+    header .meta span { margin-right: 24px; }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+    h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2c3e50;
+      margin: 0 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #dfe6e9;
+    }
+
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    /* Summary stat cards */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 20px 24px;
+      border-left: 4px solid #ccc;
+    }
+    .stat-card.high  { border-left-color: #27ae60; }
+    .stat-card.mid   { border-left-color: #f39c12; }
+    .stat-card.low   { border-left-color: #e74c3c; }
+    .stat-card .locale-name { font-size: 1rem; font-weight: 600; margin-bottom: 12px; }
+    .stat-card .row { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px; }
+    .stat-card .row .label { color: #636e72; }
+    .stat-card .row .value { font-weight: 600; }
+    .stat-card .pct-big {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .stat-card.high .pct-big { color: #27ae60; }
+    .stat-card.mid  .pct-big { color: #f39c12; }
+    .stat-card.low  .pct-big { color: #e74c3c; }
+
+    /* Missing strings section */
+    details { margin-bottom: 16px; }
+    details summary {
+      cursor: pointer;
+      padding: 12px 16px;
+      background: #f5f6fa;
+      border: 1px solid #dfe6e9;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      user-select: none;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before {
+      content: "▶";
+      font-size: 0.7rem;
+      color: #636e72;
+      transition: transform 0.15s;
+      flex-shrink: 0;
+    }
+    details[open] summary::before { transform: rotate(90deg); }
+    details[open] summary {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: #dfe6e9;
+      color: #2d3436;
+    }
+    .badge.high { background: #d5f5e3; color: #1e8449; }
+    .badge.mid  { background: #fef9e7; color: #9a7d0a; }
+    .badge.low  { background: #fde8e8; color: #c0392b; }
+
+    .table-container {
+      border: 1px solid #dfe6e9;
+      border-top: none;
+      border-bottom-left-radius: 6px;
+      border-bottom-right-radius: 6px;
+      overflow: hidden;
+    }
+
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #fafbfc;
+      border-bottom: 1px solid #dfe6e9;
+    }
+    .search-bar input {
+      flex: 1;
+      border: 1px solid #dfe6e9;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    .search-bar input:focus { border-color: #3498db; }
+    .search-bar .count { font-size: 0.8rem; color: #636e72; white-space: nowrap; }
+
+    .missing-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.83rem;
+    }
+    .missing-table thead th {
+      background: #f5f6fa;
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #636e72;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid #dfe6e9;
+      white-space: nowrap;
+    }
+    .missing-table tbody tr:nth-child(even) { background: #fafbfc; }
+    .missing-table tbody tr:hover { background: #eaf4fb; }
+    .missing-table tbody td {
+      padding: 7px 12px;
+      border-bottom: 1px solid #f0f2f5;
+      vertical-align: top;
+    }
+    .missing-table tbody tr:last-child td { border-bottom: none; }
+
+    .missing-table .col-file { color: #636e72; font-family: monospace; font-size: 0.8rem; word-break: break-all; }
+    .missing-table .col-id   { font-family: monospace; font-size: 0.82rem; color: #2c3e50; }
+    .missing-table .col-line { text-align: center; color: #636e72; }
+    .missing-table .col-wc  { text-align: right; color: #636e72; }
+    .missing-table .col-link { text-align: center; }
+    .missing-table a { color: #3498db; text-decoration: none; }
+    .missing-table a:hover { text-decoration: underline; }
+
+    .totals-row td {
+      font-weight: 600;
+      background: #f5f6fa !important;
+      border-top: 2px solid #dfe6e9;
+      padding: 10px 12px;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Firefox L10n Completeness Dashboard</h1>
+  <div class="meta">
+    <span>Channel: <strong>{{ config.comparison.channel }}</strong></span>
+    <span>Generated: {{ generated_at }}</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- Summary stat cards -->
+  <div class="stat-grid">
+    {% for locale in locales %}
+    {% set r = results[locale] %}
+    {% set name = locale_names.get(locale, locale) %}
+    {% set tier = "high" if r.completeness_pct >= 90 else ("mid" if r.completeness_pct >= 70 else "low") %}
+    <div class="stat-card {{ tier }}">
+      <div class="locale-name">{{ name }} <span style="color:#b2bec3;font-weight:400;font-size:0.85rem">({{ locale }})</span></div>
+      <div class="pct-big">{{ r.completeness_pct }}%</div>
+      <div class="row"><span class="label">Strings translated</span><span class="value">{{ "{:,}".format(r.translated) }} / {{ "{:,}".format(r.total_strings) }}</span></div>
+      <div class="row"><span class="label">Missing strings</span><span class="value">{{ "{:,}".format(r.missing_count) }}</span></div>
+      <div class="row"><span class="label">Word volume translated</span><span class="value">{{ r.word_completeness_pct }}%</span></div>
+      <div class="row"><span class="label">Missing word volume</span><span class="value">{{ "{:,}".format(r.missing_word_count) }} / {{ "{:,}".format(r.total_source_words) }}</span></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Overall completeness chart -->
+  <div class="card">
+    <h2>Overall Completeness</h2>
+    {{ overall_chart }}
+  </div>
+
+  <!-- Per-component breakdown -->
+  <div class="card">
+    <h2>Completeness by Component</h2>
+    {{ component_chart }}
+  </div>
+
+  <!-- Missing strings tables -->
+  <div class="card">
+    <h2>Missing Strings</h2>
+    {% for locale in locales %}
+    {% set r = results[locale] %}
+    {% set name = locale_names.get(locale, locale) %}
+    {% set tier = "high" if r.completeness_pct >= 90 else ("mid" if r.completeness_pct >= 70 else "low") %}
+    <details>
+      <summary>
+        {{ name }} ({{ locale }})
+        <span class="badge {{ tier }}">{{ r.completeness_pct }}% complete</span>
+        <span class="badge">{{ "{:,}".format(r.missing_count) }} missing strings</span>
+        <span class="badge">{{ "{:,}".format(r.missing_word_count) }} missing words</span>
+      </summary>
+      <div class="table-container">
+        <div class="search-bar">
+          <input
+            type="search"
+            placeholder="Filter by file or string ID…"
+            oninput="filterTable(this, '{{ locale }}')"
+          >
+          <span class="count" id="count-{{ locale }}">{{ "{:,}".format(r.missing_count) }} strings</span>
+        </div>
+        <div style="overflow-x:auto; max-height:520px; overflow-y:auto;">
+          <table class="missing-table" id="table-{{ locale }}">
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>String ID</th>
+                <th>Line</th>
+                <th>Words</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in r.missing %}
+              <tr>
+                <td class="col-file">{{ m.file }}</td>
+                <td class="col-id">{{ m.string_id }}</td>
+                <td class="col-line">{{ m.source_line if m.source_line else "—" }}</td>
+                <td class="col-wc">{{ m.word_count }}</td>
+                <td class="col-link"><a href="{{ m.github_url }}" target="_blank" rel="noopener">view ↗</a></td>
+              </tr>
+              {% endfor %}
+              <tr class="totals-row">
+                <td colspan="3">Total missing</td>
+                <td class="col-wc">{{ "{:,}".format(r.missing_word_count) }} words<br><span style="font-size:0.78rem;color:#636e72">{{ r.word_completeness_pct }}% of source volume translated</span></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+
+</main>
+
+<script>
+function filterTable(input, locale) {
+  const query = input.value.toLowerCase();
+  const table = document.getElementById("table-" + locale);
+  const rows = table.querySelectorAll("tbody tr:not(.totals-row)");
+  let visible = 0;
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    const show = text.includes(query);
+    row.classList.toggle("hidden", !show);
+    if (show) visible++;
+  });
+  document.getElementById("count-" + locale).textContent =
+    visible.toLocaleString() + " strings" + (query ? " (filtered)" : "");
+}
+</script>
+
+</body>
+</html>
